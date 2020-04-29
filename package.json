@@ -5,17 +5,23 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "start": "ts-node index.ts",
-    "format": "prettier \"**/*.ts\" --write"
+    "start": "ts-node ./src/index.ts",
+    "format": "prettier \"**/*.ts\" --write",
+    "start:watch": "nodemon"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.6",
     "@types/express": "^4.17.6",
     "@types/node": "^13.13.4",
+    "nodemon": "^2.0.3",
     "prettier": "^2.0.5",
     "ts-node": "^8.9.1",
     "typescript": "^3.8.3"
   },
   "dependencies": {
+    "axios": "^0.19.2",
+    "cors": "^2.8.5",
+    "dotenv": "^8.2.0",
     "express": "^4.17.1"
   }
 }
