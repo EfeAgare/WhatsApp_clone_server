@@ -10,4 +10,10 @@
 //   type Subscription {
 //     _: String
 //   }
+
+//   schema {
+//     query: Query
+//     mutation: Mutation
+//     subscription: Subscription
+//   }
 // `;

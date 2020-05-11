@@ -1,1 +1,4 @@
 node_modules
+src/tests/queries/_snapshots_
+test-results
+types/graphql.d.ts
