@@ -8,6 +8,7 @@ export default gql`
     id: ID!
     content: String!
     createdAt: Date!
+    chat: Chat
   }
 
   type Chat {
@@ -27,8 +28,13 @@ export default gql`
     addMessage(chatId: ID!, content: String!): Message
   }
 
+  type Subscription {
+    messageAdded: Message!
+  }
+
   schema {
     query: Query
     mutation: Mutation
+    subscription: Subscription
   }
 `;

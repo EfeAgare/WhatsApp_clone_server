@@ -7,6 +7,14 @@ const resolvers: Resolvers = {
   Date: DateTimeResolver,
   URL: URLResolver,
 
+  Message: {
+    chat(message) {
+      return (
+        chats.find((c) => c.messages.some((m) => m === message.id)) || null
+      );
+    },
+  },
+
   Chat: {
     lastMessage(chat) {
       const lastMessage = chat.messages[chat.messages.length - 1];
@@ -19,15 +27,17 @@ const resolvers: Resolvers = {
   },
   Query: {
     chats(root, args, context, info) {
+      console.log("chats")
       return chats;
     },
     chat(root, { chatId }, context, info) {
+      console.log("chat")
       return chats.find((c) => c.id === chatId);
     },
   },
 
   Mutation: {
-    addMessage(root, { chatId, content }) {
+    addMessage(root, { chatId, content }, { pubsub }) {
       const chatIndex = chats.findIndex((c) => c.id === chatId);
 
       if (chatIndex === -1) return null;
@@ -50,9 +60,19 @@ const resolvers: Resolvers = {
       chats.splice(chatIndex, 1);
       chats.unshift(chat);
 
+      pubsub.publish('messageAdded', {
+        messageAdded: message,
+      });
+
       return message;
+    },
+  },
+  Subscription: {
+    messageAdded: {
+      subscribe: (root, args, { pubsub }) =>
+        pubsub.asyncIterator('messageAdded'),
     },
   },
 };
 
-export default resolvers
+export default resolvers;
