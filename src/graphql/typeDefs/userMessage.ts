@@ -32,14 +32,19 @@ export default gql`
   type Query {
     chats: [Chat!]!
     chat(chatId: ID!): Chat
+    users: [User!]!
   }
 
   type Mutation {
     addMessage(chatId: ID!, content: String!): Message
+    addChat(recipientId: ID!): Chat
+    removeChat(chatId: ID!) : ID
   }
 
   type Subscription {
     messageAdded: Message!
+    chatAdded: Chat!
+    chatRemoved: ID!
   }
 
   schema {

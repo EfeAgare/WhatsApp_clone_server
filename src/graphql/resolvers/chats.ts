@@ -1,7 +1,7 @@
 import { DateTimeResolver, URLResolver } from 'graphql-scalars';
 import { withFilter } from 'apollo-server-express';
 
-import { User, Message, chats, messages, users } from '../../db/db';
+import { User, Message, Chat, chats, messages, users } from '../../db/db';
 import { Resolvers } from '../typeDefs/graphql.d';
 
 const resolvers: Resolvers = {
@@ -23,7 +23,6 @@ const resolvers: Resolvers = {
     },
 
     isMine(message, args, { currentUser }) {
-
       return message.sender === currentUser.id;
     },
   },
@@ -60,7 +59,7 @@ const resolvers: Resolvers = {
         (p: any) => p !== currentUser.id
       );
 
-      console.log(participantId)
+      console.log(participantId);
       if (!participantId) return null;
 
       const participant = users.find((u) => u.id === participantId);
@@ -88,6 +87,12 @@ const resolvers: Resolvers = {
       if (!chat) return;
 
       return chat.participants.includes(currentUser.id) ? chat : null;
+    },
+
+    users(root, args, { currentUser }) {
+      if (!currentUser) return [];
+
+      return users.filter((u) => u.id !== currentUser.id);
     },
   },
 
@@ -129,6 +134,64 @@ const resolvers: Resolvers = {
 
       return message;
     },
+
+    addChat(root, { recipientId }, { currentUser, pubsub }) {
+      if (!currentUser) return null;
+      if (!users.some((u) => u.id === recipientId)) return null;
+
+      let chat = chats.find(
+        (c) =>
+          c.participants.includes(currentUser.id) &&
+          c.participants.includes(recipientId)
+      );
+
+      if (chat) return chat;
+
+      const chatsIds = chats.map((c) => Number(c.id));
+
+      chat = {
+        id: String(Math.max(...chatsIds) + 1),
+        participants: [currentUser.id, recipientId],
+        messages: [],
+      };
+
+      chats.push(chat);
+
+      pubsub.publish('chatAdded', {
+        chatAdded: chat,
+      });
+
+      return chat;
+    },
+
+    removeChat(root, { chatId }, { currentUser, pubsub }) {
+      if (!currentUser) return null;
+ 
+      const chatIndex = chats.findIndex(c => c.id === chatId);
+ 
+      if (chatIndex === -1) return null;
+ 
+      const chat = chats[chatIndex];
+ 
+      if (!chat.participants.some(p => p === currentUser.id)) return null;
+ 
+      chat.messages.forEach(chatMessage => {
+        const chatMessageIndex = messages.findIndex(m => m.id === chatMessage);
+ 
+        if (chatMessageIndex !== -1) {
+          messages.splice(chatMessageIndex, 1);
+        }
+      });
+ 
+      chats.splice(chatIndex, 1);
+
+      pubsub.publish('chatRemoved', {
+        chatRemoved: chat.id,
+        targetChat: chat,
+      });
+ 
+      return chatId;
+    },
   },
   Subscription: {
     messageAdded: {
@@ -140,6 +203,28 @@ const resolvers: Resolvers = {
           return [messageAdded.sender, messageAdded.recipient].includes(
             currentUser.id
           );
+        }
+      ),
+    },
+
+    chatAdded: {
+      subscribe: withFilter(
+        (root, args, { pubsub }) => pubsub.asyncIterator('chatAdded'),
+        ({ chatAdded }: { chatAdded: Chat }, args, { currentUser }) => {
+          if (!currentUser) return false;
+ 
+          return chatAdded.participants.some(p => p === currentUser.id);
+        }
+      ),
+    },
+
+    chatRemoved: {
+      subscribe: withFilter(
+        (root, args, { pubsub }) => pubsub.asyncIterator('chatRemoved'),
+        ({ targetChat }: { targetChat: Chat }, args, { currentUser }) => {
+          if (!currentUser) return false;
+ 
+          return targetChat.participants.some(p => p === currentUser.id);
         }
       ),
     },
