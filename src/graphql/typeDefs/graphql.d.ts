@@ -1,5 +1,5 @@
 import { GraphQLResolveInfo, GraphQLScalarType, GraphQLScalarTypeConfig } from 'graphql';
-import { Message, Chat } from '../../db';
+import { User, Message, Chat } from '../../db';
 import { MyContext } from '../../graphql/context';
 export type Maybe<T> = T | null;
 export type RequireFields<T, K extends keyof T> = { [X in Exclude<keyof T, K>]?: T[X] } & { [P in K]-?: NonNullable<T[P]> };
@@ -22,15 +22,26 @@ export type Message = {
   content: Scalars['String'];
   createdAt: Scalars['Date'];
   chat?: Maybe<Chat>;
+  sender?: Maybe<User>;
+  recipient?: Maybe<User>;
+  isMine: Scalars['Boolean'];
 };
 
 export type Chat = {
    __typename?: 'Chat';
   id: Scalars['ID'];
-  name: Scalars['String'];
+  name?: Maybe<Scalars['String']>;
   picture?: Maybe<Scalars['URL']>;
   lastMessage?: Maybe<Message>;
   messages: Array<Message>;
+  participants: Array<User>;
+};
+
+export type User = {
+   __typename?: 'User';
+  id: Scalars['ID'];
+  name: Scalars['String'];
+  picture?: Maybe<Scalars['URL']>;
 };
 
 export type Query = {
@@ -140,6 +151,7 @@ export type ResolversTypes = {
   Message: ResolverTypeWrapper<Message>,
   ID: ResolverTypeWrapper<Scalars['ID']>,
   Chat: ResolverTypeWrapper<Chat>,
+  User: ResolverTypeWrapper<User>,
   Query: ResolverTypeWrapper<{}>,
   Mutation: ResolverTypeWrapper<{}>,
   Subscription: ResolverTypeWrapper<{}>,
@@ -154,6 +166,7 @@ export type ResolversParentTypes = {
   Message: Message,
   ID: Scalars['ID'],
   Chat: Chat,
+  User: User,
   Query: {},
   Mutation: {},
   Subscription: {},
@@ -172,15 +185,26 @@ export type MessageResolvers<ContextType = MyContext, ParentType extends Resolve
   content?: Resolver<ResolversTypes['String'], ParentType, ContextType>,
   createdAt?: Resolver<ResolversTypes['Date'], ParentType, ContextType>,
   chat?: Resolver<Maybe<ResolversTypes['Chat']>, ParentType, ContextType>,
+  sender?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>,
+  recipient?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>,
+  isMine?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>,
   __isTypeOf?: isTypeOfResolverFn<ParentType>,
 };
 
 export type ChatResolvers<ContextType = MyContext, ParentType extends ResolversParentTypes['Chat'] = ResolversParentTypes['Chat']> = {
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>,
-  name?: Resolver<ResolversTypes['String'], ParentType, ContextType>,
+  name?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>,
   picture?: Resolver<Maybe<ResolversTypes['URL']>, ParentType, ContextType>,
   lastMessage?: Resolver<Maybe<ResolversTypes['Message']>, ParentType, ContextType>,
   messages?: Resolver<Array<ResolversTypes['Message']>, ParentType, ContextType>,
+  participants?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>,
+  __isTypeOf?: isTypeOfResolverFn<ParentType>,
+};
+
+export type UserResolvers<ContextType = MyContext, ParentType extends ResolversParentTypes['User'] = ResolversParentTypes['User']> = {
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>,
+  name?: Resolver<ResolversTypes['String'], ParentType, ContextType>,
+  picture?: Resolver<Maybe<ResolversTypes['URL']>, ParentType, ContextType>,
   __isTypeOf?: isTypeOfResolverFn<ParentType>,
 };
 
@@ -202,6 +226,7 @@ export type Resolvers<ContextType = MyContext> = {
   URL?: GraphQLScalarType,
   Message?: MessageResolvers<ContextType>,
   Chat?: ChatResolvers<ContextType>,
+  User?: UserResolvers<ContextType>,
   Query?: QueryResolvers<ContextType>,
   Mutation?: MutationResolvers<ContextType>,
   Subscription?: SubscriptionResolvers<ContextType>,

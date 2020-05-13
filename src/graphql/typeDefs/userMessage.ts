@@ -9,14 +9,24 @@ export default gql`
     content: String!
     createdAt: Date!
     chat: Chat
+    sender: User
+    recipient: User
+    isMine: Boolean!
   }
 
   type Chat {
     id: ID!
-    name: String!
+    name: String
     picture: URL
     lastMessage: Message
     messages: [Message!]!
+    participants: [User!]!
+  }
+
+  type User {
+    id: ID!
+    name: String!
+    picture: URL
   }
 
   type Query {
