@@ -48,6 +48,7 @@ export type Query = {
    __typename?: 'Query';
   chats: Array<Chat>;
   chat?: Maybe<Chat>;
+  users: Array<User>;
 };
 
 
@@ -58,6 +59,8 @@ export type QueryChatArgs = {
 export type Mutation = {
    __typename?: 'Mutation';
   addMessage?: Maybe<Message>;
+  addChat?: Maybe<Chat>;
+  removeChat?: Maybe<Scalars['ID']>;
 };
 
 
@@ -66,9 +69,21 @@ export type MutationAddMessageArgs = {
   content: Scalars['String'];
 };
 
+
+export type MutationAddChatArgs = {
+  recipientId: Scalars['ID'];
+};
+
+
+export type MutationRemoveChatArgs = {
+  chatId: Scalars['ID'];
+};
+
 export type Subscription = {
    __typename?: 'Subscription';
   messageAdded: Message;
+  chatAdded: Chat;
+  chatRemoved: Scalars['ID'];
 };
 
 
@@ -211,14 +226,19 @@ export type UserResolvers<ContextType = MyContext, ParentType extends ResolversP
 export type QueryResolvers<ContextType = MyContext, ParentType extends ResolversParentTypes['Query'] = ResolversParentTypes['Query']> = {
   chats?: Resolver<Array<ResolversTypes['Chat']>, ParentType, ContextType>,
   chat?: Resolver<Maybe<ResolversTypes['Chat']>, ParentType, ContextType, RequireFields<QueryChatArgs, 'chatId'>>,
+  users?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>,
 };
 
 export type MutationResolvers<ContextType = MyContext, ParentType extends ResolversParentTypes['Mutation'] = ResolversParentTypes['Mutation']> = {
   addMessage?: Resolver<Maybe<ResolversTypes['Message']>, ParentType, ContextType, RequireFields<MutationAddMessageArgs, 'chatId' | 'content'>>,
+  addChat?: Resolver<Maybe<ResolversTypes['Chat']>, ParentType, ContextType, RequireFields<MutationAddChatArgs, 'recipientId'>>,
+  removeChat?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType, RequireFields<MutationRemoveChatArgs, 'chatId'>>,
 };
 
 export type SubscriptionResolvers<ContextType = MyContext, ParentType extends ResolversParentTypes['Subscription'] = ResolversParentTypes['Subscription']> = {
   messageAdded?: SubscriptionResolver<ResolversTypes['Message'], "messageAdded", ParentType, ContextType>,
+  chatAdded?: SubscriptionResolver<ResolversTypes['Chat'], "chatAdded", ParentType, ContextType>,
+  chatRemoved?: SubscriptionResolver<ResolversTypes['ID'], "chatRemoved", ParentType, ContextType>,
 };
 
 export type Resolvers<ContextType = MyContext> = {
