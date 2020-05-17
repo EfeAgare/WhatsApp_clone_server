@@ -1,8 +1,12 @@
 import { DateTimeResolver, URLResolver } from 'graphql-scalars';
 import { withFilter } from 'apollo-server-express';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 
 import { User, Message, Chat, chats, messages, users } from '../../db/db';
 import { Resolvers } from '../typeDefs/graphql.d';
+import { secret, expiration } from '../../env';
+import { validatePassword, validateLength } from '../../utils/validation';
 
 const resolvers: Resolvers = {
   Date: DateTimeResolver,
@@ -59,7 +63,6 @@ const resolvers: Resolvers = {
         (p: any) => p !== currentUser.id
       );
 
-      console.log(participantId);
       if (!participantId) return null;
 
       const participant = users.find((u) => u.id === participantId);
@@ -74,6 +77,10 @@ const resolvers: Resolvers = {
     },
   },
   Query: {
+    me(root, args, { currentUser }) {
+      return currentUser || null;
+    },
+
     chats(root, args, { currentUser }, info) {
       if (!currentUser) return [];
 
@@ -166,31 +173,81 @@ const resolvers: Resolvers = {
 
     removeChat(root, { chatId }, { currentUser, pubsub }) {
       if (!currentUser) return null;
- 
-      const chatIndex = chats.findIndex(c => c.id === chatId);
- 
+
+      const chatIndex = chats.findIndex((c) => c.id === chatId);
+
       if (chatIndex === -1) return null;
- 
+
       const chat = chats[chatIndex];
- 
-      if (!chat.participants.some(p => p === currentUser.id)) return null;
- 
-      chat.messages.forEach(chatMessage => {
-        const chatMessageIndex = messages.findIndex(m => m.id === chatMessage);
- 
+
+      if (!chat.participants.some((p) => p === currentUser.id)) return null;
+
+      chat.messages.forEach((chatMessage) => {
+        const chatMessageIndex = messages.findIndex(
+          (m) => m.id === chatMessage
+        );
+
         if (chatMessageIndex !== -1) {
           messages.splice(chatMessageIndex, 1);
         }
       });
- 
+
       chats.splice(chatIndex, 1);
 
       pubsub.publish('chatRemoved', {
         chatRemoved: chat.id,
         targetChat: chat,
       });
- 
+
       return chatId;
+    },
+
+    signIn(root, { username, password }, { res }) {
+      const user = users.find((u) => u.username === username);
+
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      const passwordMatch = bcrypt.compareSync(password, user.password);
+
+      if (!passwordMatch) {
+        throw new Error('Password and Email not current');
+      }
+
+      const authToken = jwt.sign(username, secret);
+
+      res.cookie('authToken', authToken, { maxAge: expiration });
+
+      return user
+    },
+
+    signUp(root, { name, username, password, passwordConfirm }) {
+      validateLength('req.name', name, 3, 50);
+      validateLength('req.username', username, 3, 18);
+      validatePassword('req.password', password);
+ 
+      if (password !== passwordConfirm) {
+        throw Error("req.password and req.passwordConfirm don't match");
+      }
+ 
+      if (users.some(u => u.username === username)) {
+        throw Error('username already exists');
+      }
+ 
+      const passwordHash = bcrypt.hashSync(password, bcrypt.genSaltSync(8));
+ 
+      const user: User = {
+        id: String(users.length + 1),
+        password: passwordHash,
+        picture: '',
+        username,
+        name,
+      };
+ 
+      users.push(user);
+ 
+      return user;
     },
   },
   Subscription: {
@@ -212,8 +269,8 @@ const resolvers: Resolvers = {
         (root, args, { pubsub }) => pubsub.asyncIterator('chatAdded'),
         ({ chatAdded }: { chatAdded: Chat }, args, { currentUser }) => {
           if (!currentUser) return false;
- 
-          return chatAdded.participants.some(p => p === currentUser.id);
+
+          return chatAdded.participants.some((p) => p === currentUser.id);
         }
       ),
     },
@@ -223,8 +280,8 @@ const resolvers: Resolvers = {
         (root, args, { pubsub }) => pubsub.asyncIterator('chatRemoved'),
         ({ targetChat }: { targetChat: Chat }, args, { currentUser }) => {
           if (!currentUser) return false;
- 
-          return targetChat.participants.some(p => p === currentUser.id);
+
+          return targetChat.participants.some((p) => p === currentUser.id);
         }
       ),
     },

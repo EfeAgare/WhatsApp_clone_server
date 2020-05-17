@@ -27,18 +27,22 @@ export default gql`
     id: ID!
     name: String!
     picture: URL
+    username: String!
   }
 
   type Query {
     chats: [Chat!]!
     chat(chatId: ID!): Chat
     users: [User!]!
+    me: User
   }
 
   type Mutation {
     addMessage(chatId: ID!, content: String!): Message
     addChat(recipientId: ID!): Chat
-    removeChat(chatId: ID!) : ID
+    removeChat(chatId: ID!): ID
+    signIn(username: String!, password: String!): User
+    signUp(name: String!, username: String!, password: String!, passwordConfirm: String!): User
   }
 
   type Subscription {

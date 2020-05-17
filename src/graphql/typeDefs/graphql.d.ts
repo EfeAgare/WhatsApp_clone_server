@@ -42,6 +42,7 @@ export type User = {
   id: Scalars['ID'];
   name: Scalars['String'];
   picture?: Maybe<Scalars['URL']>;
+  username: Scalars['String'];
 };
 
 export type Query = {
@@ -49,6 +50,7 @@ export type Query = {
   chats: Array<Chat>;
   chat?: Maybe<Chat>;
   users: Array<User>;
+  me?: Maybe<User>;
 };
 
 
@@ -61,6 +63,8 @@ export type Mutation = {
   addMessage?: Maybe<Message>;
   addChat?: Maybe<Chat>;
   removeChat?: Maybe<Scalars['ID']>;
+  signIn?: Maybe<User>;
+  signUp?: Maybe<User>;
 };
 
 
@@ -77,6 +81,20 @@ export type MutationAddChatArgs = {
 
 export type MutationRemoveChatArgs = {
   chatId: Scalars['ID'];
+};
+
+
+export type MutationSignInArgs = {
+  username: Scalars['String'];
+  password: Scalars['String'];
+};
+
+
+export type MutationSignUpArgs = {
+  name: Scalars['String'];
+  username: Scalars['String'];
+  password: Scalars['String'];
+  passwordConfirm: Scalars['String'];
 };
 
 export type Subscription = {
@@ -220,6 +238,7 @@ export type UserResolvers<ContextType = MyContext, ParentType extends ResolversP
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>,
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>,
   picture?: Resolver<Maybe<ResolversTypes['URL']>, ParentType, ContextType>,
+  username?: Resolver<ResolversTypes['String'], ParentType, ContextType>,
   __isTypeOf?: isTypeOfResolverFn<ParentType>,
 };
 
@@ -227,12 +246,15 @@ export type QueryResolvers<ContextType = MyContext, ParentType extends Resolvers
   chats?: Resolver<Array<ResolversTypes['Chat']>, ParentType, ContextType>,
   chat?: Resolver<Maybe<ResolversTypes['Chat']>, ParentType, ContextType, RequireFields<QueryChatArgs, 'chatId'>>,
   users?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>,
+  me?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>,
 };
 
 export type MutationResolvers<ContextType = MyContext, ParentType extends ResolversParentTypes['Mutation'] = ResolversParentTypes['Mutation']> = {
   addMessage?: Resolver<Maybe<ResolversTypes['Message']>, ParentType, ContextType, RequireFields<MutationAddMessageArgs, 'chatId' | 'content'>>,
   addChat?: Resolver<Maybe<ResolversTypes['Chat']>, ParentType, ContextType, RequireFields<MutationAddChatArgs, 'recipientId'>>,
   removeChat?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType, RequireFields<MutationRemoveChatArgs, 'chatId'>>,
+  signIn?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType, RequireFields<MutationSignInArgs, 'username' | 'password'>>,
+  signUp?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType, RequireFields<MutationSignUpArgs, 'name' | 'username' | 'password' | 'passwordConfirm'>>,
 };
 
 export type SubscriptionResolvers<ContextType = MyContext, ParentType extends ResolversParentTypes['Subscription'] = ResolversParentTypes['Subscription']> = {
