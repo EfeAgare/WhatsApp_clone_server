@@ -1,13 +1,13 @@
 import { gql } from 'apollo-server-express';
 
 export default gql`
-  scalar Date
+  scalar DateTime
   scalar URL
 
   type Message {
     id: ID!
     content: String!
-    createdAt: Date!
+    createdAt: DateTime!
     chat: Chat
     sender: User
     recipient: User

@@ -1,18 +1,21 @@
-import { ApolloServer, PubSub } from 'apollo-server-express';
+import { ApolloServer } from 'apollo-server-express';
 import http from 'http';
-
+import jwt from 'jsonwebtoken';
 import cookie from 'cookie';
+import sql from 'sql-template-strings';
 
 import schema from './graphql/index';
-import { users } from './db/db';
 import app from './expressApp';
 import { origin, port, secret } from './env';
-import jwt from 'jsonwebtoken';
+import { pool, dbConfig } from './db/config';
+const { PostgresPubSub } = require('graphql-postgres-subscriptions');
+import { MyContext } from './graphql/context/context';
 
-const pubsub = new PubSub();
+const pubsub = new PostgresPubSub(dbConfig);
+
 const server = new ApolloServer({
   schema,
-  context: (session: any) => {
+  context: async (session: any) => {
     // Access the request object
     let req = session.connection
       ? session.connection.context.request
@@ -24,18 +27,33 @@ const server = new ApolloServer({
     }
 
     let currentUser;
-   
+
     if (req.cookies.authToken) {
       const username = jwt.verify(req.cookies.authToken, secret) as string;
+      if (username) {
+        const { rows } = await pool.query(
+          sql`SELECT * FROM users WHERE username = ${username}`
+        );
+        currentUser = rows[0];
+      }
+    }
 
-      currentUser = username && users.find((u) => u.username === username);
+    let db;
+
+    if (!session.connection) {
+      db = await pool.connect();
     }
 
     return {
       currentUser,
       pubsub,
       res: session.res,
+      db,
     };
+  },
+  formatResponse: (res: any, { context }: { context: MyContext }) => {
+    context.db.release();
+    return res;
   },
 });
 
@@ -45,7 +63,7 @@ server.applyMiddleware({
   cors: { credentials: true, origin },
 });
 
-const httpServer = http.createServer(app);
+export const httpServer = http.createServer(app);
 server.installSubscriptionHandlers(httpServer);
 
 httpServer.listen(port, () => {
