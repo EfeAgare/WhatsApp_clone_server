@@ -1,4 +1,5 @@
 node_modules
-src/tests/queries/_snapshots_
+src/tests/queries/__snapshots__/
 test-results
 types/graphql.d.ts
+.env

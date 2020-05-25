@@ -2,78 +2,101 @@ import { DateTimeResolver, URLResolver } from 'graphql-scalars';
 import { withFilter } from 'apollo-server-express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import sql from 'sql-template-strings';
 
-import { User, Message, Chat, chats, messages, users } from '../../db/db';
+import { Message, Chat } from '../../db/db';
 import { Resolvers } from '../typeDefs/graphql.d';
 import { secret, expiration } from '../../env';
 import { validatePassword, validateLength } from '../../utils/validation';
+import { pool } from '../../db/config';
 
 const resolvers: Resolvers = {
-  Date: DateTimeResolver,
+  DateTime: DateTimeResolver,
   URL: URLResolver,
 
   Message: {
-    chat(message) {
-      return (
-        chats.find((c) => c.messages.some((m) => m === message.id)) || null
-      );
+    createdAt(message) {
+      return new Date(message.created_at);
     },
-    sender(message) {
-      return users.find((u) => u.id === message.sender) || null;
+    async chat(message, args, { db }) {
+      const { rows } = await db.query(
+        sql`SELECT * FROM chats WHERE id = ${message.chat_id}`
+      );
+      return rows[0] || null;
     },
 
-    recipient(message) {
-      return users.find((u) => u.id === message.recipient) || null;
+    async sender(message, args, { db }) {
+      const { rows } = await db.query(
+        sql`SELECT * from users WHERE id =${message.sender_user_id}`
+      );
+      return rows[0] || null;
+    },
+
+    async recipient(message, args, { db }) {
+      const { rows } = await db.query(sql`
+      SELECT users.* FROM users, chats_users
+      WHERE chats_users.user_id != ${message.sender_user_id}
+      AND chats_users.chat_id = ${message.chat_id}
+    `);
+      return rows[0] || null;
     },
 
     isMine(message, args, { currentUser }) {
-      return message.sender === currentUser.id;
+      return message.sender_user_id === currentUser.id;
     },
   },
 
   Chat: {
-    lastMessage(chat, args, { currentUser }) {
-      const lastMessage = chat.messages[chat.messages.length - 1];
-
-      return messages.find((m) => m.id === lastMessage) || null;
+    async lastMessage(chat, args, { currentUser, db }) {
+      const { rows } = await db.query(
+        sql`SELECT * FROM messages WHERE chat_id = ${chat.id} ORDER BY created_at DESC LIMIT 1`
+      );
+      return rows[0];
     },
 
-    messages(chat, args, { currentUser }) {
-      return messages.filter((m) => chat.messages.includes(m.id));
+    async messages(chat, args, { currentUser, db }) {
+      const { rows } = await db.query(
+        sql`SELECT * FROM messages WHERE chat_id = ${chat.id}`
+      );
+      return rows;
     },
 
-    name(chat, args, { currentUser }) {
+    async name(chat, args, { currentUser, db }) {
       if (!currentUser) return null;
 
-      const participantId = chat.participants.find(
-        (p: string) => p !== currentUser.id
-      );
+      const { rows } = await db.query(sql`
+      SELECT users.* FROM users, chats_users
+      WHERE users.id != ${currentUser.id}
+      AND users.id = chats_users.user_id
+      AND chats_users.chat_id = ${chat.id}`);
 
-      if (!participantId) return null;
-
-      const participant = users.find((u) => u.id === participantId);
+      const participant = rows[0];
 
       return participant ? participant.name : null;
     },
 
-    picture(chat, args, { currentUser }) {
+    async picture(chat, args, { currentUser, db }) {
       if (!currentUser) return null;
 
-      const participantId = chat.participants.find(
-        (p: any) => p !== currentUser.id
-      );
+      const { rows } = await db.query(sql`
+      SELECT users.* FROM users, chats_users
+      WHERE users.id != ${currentUser.id}
+      AND users.id = chats_users.user_id
+      AND chats_users.chat_id = ${chat.id}`);
 
-      if (!participantId) return null;
-
-      const participant = users.find((u) => u.id === participantId);
+      const participant = rows[0];
 
       return participant ? participant.picture : null;
     },
 
-    participants(chat, args, { currentUser }) {
-      return chat.participants
-        .map((p: any) => users.find((u) => u.id === p))
-        .filter(Boolean) as User[];
+    async participants(chat, args, { currentUser, db }) {
+      const { rows } = await db.query(sql`
+        SELECT users.* FROM users, chats_users
+        WHERE chats_users.chat_id = ${chat.id}
+        AND chats_users.user_id = users.id
+      `);
+
+      return rows;
     },
   },
   Query: {
@@ -81,129 +104,148 @@ const resolvers: Resolvers = {
       return currentUser || null;
     },
 
-    chats(root, args, { currentUser }, info) {
+    async chats(root, args, { currentUser, db }, info) {
       if (!currentUser) return [];
+      const { rows } = await db.query(sql`
+      SELECT chats.* FROM chats, chats_users
+      WHERE chats.id = chats_users.chat_id
+      AND chats_users.user_id = ${currentUser.id}
+    `);
 
-      return chats.filter((c) => c.participants.includes(currentUser.id));
+      return rows;
     },
 
-    chat(root, { chatId }, { currentUser }, info) {
+    async chat(root, { chatId }, { currentUser, db }, info) {
       if (!currentUser) return null;
 
-      const chat = chats.find((c) => c.id === chatId);
-      if (!chat) return;
+      const { rows } = await db.query(sql`
+      SELECT chats.* FROM chats, chats_users
+      WHERE chats_users.chat_id = ${chatId}
+      AND chats.id = chats_users.chat_id
+      AND chats_users.user_id = ${currentUser.id}
+    `);
 
-      return chat.participants.includes(currentUser.id) ? chat : null;
+      return rows[0] ? rows[0] : null;
     },
 
-    users(root, args, { currentUser }) {
+    async users(root, args, { currentUser, db }) {
       if (!currentUser) return [];
 
-      return users.filter((u) => u.id !== currentUser.id);
+      const { rows } = await db.query(sql`
+        SELECT * FROM users
+        WHERE users.id != ${currentUser.id}
+      `);
+      return rows;
     },
   },
 
   Mutation: {
-    addMessage(root, { chatId, content }, { pubsub, currentUser }) {
+    async addMessage(root, { chatId, content }, { pubsub, currentUser, db }) {
       if (!currentUser) return null;
 
-      const chatIndex = chats.findIndex((c) => c.id === chatId);
+      const { rows } = await db.query(sql`
+        INSERT INTO messages(chat_id, sender_user_id, content)
+        VALUES(${chatId}, ${currentUser.id}, ${content})
+        RETURNING *
+      `);
 
-      if (chatIndex === -1) return null;
-
-      const chat = chats[chatIndex];
-
-      if (!chat.participants.includes(currentUser.id)) return null;
-
-      const messagesIds = messages.map((currentMessage) =>
-        Number(currentMessage.id)
-      );
-      const messageId = String(Math.max(...messagesIds) + 1);
-      const message: Message = {
-        id: messageId,
-        createdAt: new Date(),
-        content,
-        sender: currentUser.id,
-        recipient: chat.participants.find(
-          (p) => p !== currentUser.id
-        ) as string,
-      };
-
-      messages.push(message);
-      chat.messages.push(messageId);
-      // The chat will appear at the top of the ChatsList component
-      chats.splice(chatIndex, 1);
-      chats.unshift(chat);
+      const messageAdded = rows[0];
 
       pubsub.publish('messageAdded', {
-        messageAdded: message,
+        messageAdded,
       });
 
-      return message;
+      return messageAdded;
     },
 
-    addChat(root, { recipientId }, { currentUser, pubsub }) {
+    async addChat(root, { recipientId }, { currentUser, pubsub, db }) {
       if (!currentUser) return null;
-      if (!users.some((u) => u.id === recipientId)) return null;
 
-      let chat = chats.find(
-        (c) =>
-          c.participants.includes(currentUser.id) &&
-          c.participants.includes(recipientId)
+      const { rows } = await db.query(sql`
+        SELECT chats.* FROM chats, (SELECT * FROM chats_users WHERE user_id = ${currentUser.id}) AS chats_of_current_user, chats_users
+        WHERE chats.id = chats_users.chat_id 
+        AND chats_of_current_user.chat_id = chats_users.chat_id
+        AND chats_users.user_id = ${recipientId}
+      `);
+
+      // If there is already a chat between these two users, return it
+      if (rows[0]) {
+        return rows[0];
+      }
+
+      try {
+        await db.query('BEGIN');
+        const { rows } = await db.query(sql`
+          INSERT INTO chats
+          DEFAULT VALUES
+          RETURNING *
+        `);
+
+        const chatAdded = rows[0];
+
+        await db.query(sql`
+          INSERT INTO chats_users(chat_id, user_id)
+          VALUES(${chatAdded.id}, ${currentUser.id})
+        `);
+
+        await db.query(sql`
+          INSERT INTO chats_users(chat_id, user_id)
+          VALUES(${chatAdded.id}, ${recipientId})
+        `);
+
+        await db.query('COMMIT');
+
+        pubsub.publish('chatAdded', {
+          chatAdded,
+        });
+        return chatAdded;
+      } catch (e) {
+        await db.query('ROLLBACK');
+        throw e;
+      }
+    },
+
+    async removeChat(root, { chatId }, { currentUser, pubsub, db }) {
+      if (!currentUser) return null;
+
+      try {
+        await db.query('BEGIN');
+        const { rows } = await db.query(sql`
+        SELECT chats.* FROM chats, chats_users
+        WHERE id = ${chatId}
+        AND chats.id = chats_users.chat_id
+        AND chats_users.user_id = ${currentUser.id}
+      `);
+        const chat = rows[0];
+
+        if (!chat) {
+          await db.query('ROLLBACK');
+          return null;
+        }
+
+        await db.query(sql`
+      DELETE FROM chats WHERE chats.id = ${chatId}
+    `);
+
+        pubsub.publish('chatRemoved', {
+          chatRemoved: chat.id,
+          targetChat: chat,
+        });
+
+        await db.query('COMMIT');
+        return chatId;
+      } catch (e) {
+        await db.query('ROLLBACK');
+        throw e;
+      }
+    },
+
+    async signIn(root, { username, password }, { res, db }) {
+      const { rows } = await db.query(
+        sql`SELECT * FROM users WHERE username = ${username}`
       );
 
-      if (chat) return chat;
-
-      const chatsIds = chats.map((c) => Number(c.id));
-
-      chat = {
-        id: String(Math.max(...chatsIds) + 1),
-        participants: [currentUser.id, recipientId],
-        messages: [],
-      };
-
-      chats.push(chat);
-
-      pubsub.publish('chatAdded', {
-        chatAdded: chat,
-      });
-
-      return chat;
-    },
-
-    removeChat(root, { chatId }, { currentUser, pubsub }) {
-      if (!currentUser) return null;
-
-      const chatIndex = chats.findIndex((c) => c.id === chatId);
-
-      if (chatIndex === -1) return null;
-
-      const chat = chats[chatIndex];
-
-      if (!chat.participants.some((p) => p === currentUser.id)) return null;
-
-      chat.messages.forEach((chatMessage) => {
-        const chatMessageIndex = messages.findIndex(
-          (m) => m.id === chatMessage
-        );
-
-        if (chatMessageIndex !== -1) {
-          messages.splice(chatMessageIndex, 1);
-        }
-      });
-
-      chats.splice(chatIndex, 1);
-
-      pubsub.publish('chatRemoved', {
-        chatRemoved: chat.id,
-        targetChat: chat,
-      });
-
-      return chatId;
-    },
-
-    signIn(root, { username, password }, { res }) {
-      const user = users.find((u) => u.username === username);
+      const user = rows[0];
 
       if (!user) {
         throw new Error('User not found');
@@ -219,34 +261,33 @@ const resolvers: Resolvers = {
 
       res.cookie('authToken', authToken, { maxAge: expiration });
 
-      return user
+      return user;
     },
 
-    signUp(root, { name, username, password, passwordConfirm }) {
+    async signUp(root, { name, username, password, passwordConfirm }, { db }) {
       validateLength('req.name', name, 3, 50);
       validateLength('req.username', username, 3, 18);
       validatePassword('req.password', password);
- 
+
       if (password !== passwordConfirm) {
         throw Error("req.password and req.passwordConfirm don't match");
       }
- 
-      if (users.some(u => u.username === username)) {
+
+      const existingUserQuery = await db.query(
+        sql`SELECT * FROM users WHERE username = ${username}`
+      );
+
+      if (existingUserQuery.rows[0]) {
         throw Error('username already exists');
       }
- 
+
       const passwordHash = bcrypt.hashSync(password, bcrypt.genSaltSync(8));
- 
-      const user: User = {
-        id: String(users.length + 1),
-        password: passwordHash,
-        picture: '',
-        username,
-        name,
-      };
- 
-      users.push(user);
- 
+
+      const createdUserQuery = await db.query(
+        sql`INSERT INTO users(username, password, name, picture) VALUES (${username}, ${passwordHash}, ${name}, '') RETURNING *`
+      );
+
+      const user = createdUserQuery.rows[0];
       return user;
     },
   },
@@ -254,12 +295,19 @@ const resolvers: Resolvers = {
     messageAdded: {
       subscribe: withFilter(
         (root, args, { pubsub }) => pubsub.asyncIterator('messageAdded'),
-        ({ messageAdded }, args, { currentUser }) => {
+        async (
+          { messageAdded }: { messageAdded: Message },
+          args,
+          { currentUser }
+        ) => {
           if (!currentUser) return false;
 
-          return [messageAdded.sender, messageAdded.recipient].includes(
-            currentUser.id
-          );
+          const { rows } = await pool.query(sql`
+          SELECT * FROM chats_users
+          WHERE chat_id = ${messageAdded.chat_id}
+          AND user_id = ${currentUser.id}`);
+
+          return !!rows.length;
         }
       ),
     },
@@ -267,10 +315,15 @@ const resolvers: Resolvers = {
     chatAdded: {
       subscribe: withFilter(
         (root, args, { pubsub }) => pubsub.asyncIterator('chatAdded'),
-        ({ chatAdded }: { chatAdded: Chat }, args, { currentUser }) => {
+        async ({ chatAdded }: { chatAdded: Chat }, args, { currentUser }) => {
           if (!currentUser) return false;
 
-          return chatAdded.participants.some((p) => p === currentUser.id);
+          const { rows } = await pool.query(sql`
+            SELECT * FROM chats_users
+            WHERE chat_id = ${chatAdded.id}
+            AND user_id = ${currentUser.id}`);
+
+          return !!rows.length;
         }
       ),
     },
@@ -278,10 +331,15 @@ const resolvers: Resolvers = {
     chatRemoved: {
       subscribe: withFilter(
         (root, args, { pubsub }) => pubsub.asyncIterator('chatRemoved'),
-        ({ targetChat }: { targetChat: Chat }, args, { currentUser }) => {
+        async ({ targetChat }: { targetChat: Chat }, args, { currentUser }) => {
           if (!currentUser) return false;
 
-          return targetChat.participants.some((p) => p === currentUser.id);
+          const { rows } = await pool.query(sql`
+            SELECT * FROM chats_users
+            WHERE chat_id = ${targetChat.id}
+            AND user_id = ${currentUser.id}`);
+
+          return !!rows.length;
         }
       ),
     },

@@ -1,18 +1,32 @@
 import { createTestClient } from 'apollo-server-testing';
 import { ApolloServer, PubSub, gql } from 'apollo-server-express';
 import schema from '../../graphql/index';
-import { resetDb, users } from '../../db/db';
+
+import { pool } from '../../db/config';
+import { MyContext } from '../../graphql/context/context';
+import sql from 'sql-template-strings';
 
 describe('Mutation.removeChat', () => {
-  beforeEach(resetDb);
+
+  afterAll(async() => await pool.end());
 
   it('removes chat by id', async () => {
+    const { rows } = await pool.query(sql`SELECT * FROM users WHERE id = 1`);
+    
+    const currentUser = rows[0];
+
     const server = new ApolloServer({
       schema,
-      context: () => ({
+      context: async () => ({
         pubsub: new PubSub(),
-        currentUser: users[0],
+        currentUser,
+        db: await pool.connect(),
       }),
+
+      formatResponse: (res: any, { context }: { context: MyContext }) => {
+        context.db.release();
+        return res;
+      },
     });
 
     const { query, mutate } = createTestClient(server);
@@ -28,7 +42,7 @@ describe('Mutation.removeChat', () => {
 
     expect(addChatRes.data).toBeDefined();
     expect(addChatRes.errors).toBeUndefined();
-    expect(addChatRes.data!.removeChat).toEqual('1');
+    expect(addChatRes.data!.removeChat).toEqual(null);
 
     const getChatRes = await query({
       variables: { chatId: '1' },

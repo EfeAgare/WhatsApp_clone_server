@@ -10,7 +10,7 @@ export type Scalars = {
   Boolean: boolean;
   Int: number;
   Float: number;
-  Date: Date;
+  DateTime: any;
   URL: string;
 };
 
@@ -20,7 +20,7 @@ export type Message = {
    __typename?: 'Message';
   id: Scalars['ID'];
   content: Scalars['String'];
-  createdAt: Scalars['Date'];
+  createdAt: Scalars['DateTime'];
   chat?: Maybe<Chat>;
   sender?: Maybe<User>;
   recipient?: Maybe<User>;
@@ -179,7 +179,7 @@ export type DirectiveResolverFn<TResult = {}, TParent = {}, TContext = {}, TArgs
 export type ResolversTypes = {
   String: ResolverTypeWrapper<Scalars['String']>,
   Boolean: ResolverTypeWrapper<Scalars['Boolean']>,
-  Date: ResolverTypeWrapper<Scalars['Date']>,
+  DateTime: ResolverTypeWrapper<Scalars['DateTime']>,
   URL: ResolverTypeWrapper<Scalars['URL']>,
   Message: ResolverTypeWrapper<Message>,
   ID: ResolverTypeWrapper<Scalars['ID']>,
@@ -194,7 +194,7 @@ export type ResolversTypes = {
 export type ResolversParentTypes = {
   String: Scalars['String'],
   Boolean: Scalars['Boolean'],
-  Date: Scalars['Date'],
+  DateTime: Scalars['DateTime'],
   URL: Scalars['URL'],
   Message: Message,
   ID: Scalars['ID'],
@@ -205,8 +205,8 @@ export type ResolversParentTypes = {
   Subscription: {},
 };
 
-export interface DateScalarConfig extends GraphQLScalarTypeConfig<ResolversTypes['Date'], any> {
-  name: 'Date'
+export interface DateTimeScalarConfig extends GraphQLScalarTypeConfig<ResolversTypes['DateTime'], any> {
+  name: 'DateTime'
 }
 
 export interface UrlScalarConfig extends GraphQLScalarTypeConfig<ResolversTypes['URL'], any> {
@@ -216,7 +216,7 @@ export interface UrlScalarConfig extends GraphQLScalarTypeConfig<ResolversTypes[
 export type MessageResolvers<ContextType = MyContext, ParentType extends ResolversParentTypes['Message'] = ResolversParentTypes['Message']> = {
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>,
   content?: Resolver<ResolversTypes['String'], ParentType, ContextType>,
-  createdAt?: Resolver<ResolversTypes['Date'], ParentType, ContextType>,
+  createdAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>,
   chat?: Resolver<Maybe<ResolversTypes['Chat']>, ParentType, ContextType>,
   sender?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>,
   recipient?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>,
@@ -264,7 +264,7 @@ export type SubscriptionResolvers<ContextType = MyContext, ParentType extends Re
 };
 
 export type Resolvers<ContextType = MyContext> = {
-  Date?: GraphQLScalarType,
+  DateTime?: GraphQLScalarType,
   URL?: GraphQLScalarType,
   Message?: MessageResolvers<ContextType>,
   Chat?: ChatResolvers<ContextType>,
