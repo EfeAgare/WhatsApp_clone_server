@@ -3,7 +3,6 @@ import { withFilter } from 'apollo-server-express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import sql from 'sql-template-strings';
-
 import { Message, Chat } from '../../db/db';
 import { Resolvers } from '../typeDefs/graphql.d';
 import { secret, expiration } from '../../env';
@@ -75,7 +74,7 @@ const resolvers: Resolvers = {
       return participant ? participant.name : null;
     },
 
-    async picture(chat, args, { currentUser, db }) {
+    async picture(chat, args, { currentUser, db, dataSources }) {
       if (!currentUser) return null;
 
       const { rows } = await db.query(sql`
@@ -86,7 +85,9 @@ const resolvers: Resolvers = {
 
       const participant = rows[0];
 
-      return participant ? participant.picture : null;
+      return participant && participant.picture
+        ? participant.picture
+        : dataSources.unsplashApi.getRandomPhoto();
     },
 
     async participants(chat, args, { currentUser, db }) {

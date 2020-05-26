@@ -10,6 +10,7 @@ import { origin, port, secret } from './env';
 import { pool, dbConfig } from './db/config';
 const { PostgresPubSub } = require('graphql-postgres-subscriptions');
 import { MyContext } from './graphql/context/context';
+import { UnsplashApi } from './graphql/unsplash.api';
 
 const pubsub = new PostgresPubSub(dbConfig);
 
@@ -51,10 +52,14 @@ const server = new ApolloServer({
       db,
     };
   },
+  // @ts-ignore
   formatResponse: (res: any, { context }: { context: MyContext }) => {
     context.db.release();
     return res;
   },
+  dataSources: () => ({
+    unsplashApi: new UnsplashApi(),
+  }),
 });
 
 server.applyMiddleware({

@@ -16,6 +16,7 @@ describe('Query.getUsers', () => {
       schema,
       context: async () => ({ currentUser, db: await pool.connect() }),
 
+      // @ts-ignore
       formatResponse: (res: any, { context }: { context: MyContext }) => {
         context.db.release();
         return res;
@@ -39,8 +40,6 @@ describe('Query.getUsers', () => {
     expect(res.data).toBeDefined();
     expect(res.errors).toBeUndefined();
     expect(res.data).toMatchSnapshot();
-
-
 
     res = await query({
       query: gql`
