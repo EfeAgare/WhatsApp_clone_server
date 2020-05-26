@@ -23,6 +23,7 @@ describe('Mutation.removeChat', () => {
         db: await pool.connect(),
       }),
 
+      // @ts-ignore
       formatResponse: (res: any, { context }: { context: MyContext }) => {
         context.db.release();
         return res;

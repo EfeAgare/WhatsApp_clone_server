@@ -73,6 +73,10 @@ export const dbSeeds = async () => {
   await pool.query(
     sql`SELECT setval('users_id_seq', (SELECT max(id) FROM users))`
   );
+  
+  await pool.query(
+    sql`SELECT setval('users_id_seq', (SELECT max(id) FROM users))`
+  );
 
   await pool.query(sql`DELETE FROM chats`);
 

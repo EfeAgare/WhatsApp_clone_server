@@ -7,14 +7,13 @@ import { pool } from '../../db/config';
 import { MyContext } from '../../graphql/context/context';
 
 describe('Query.chat', () => {
-
   afterAll(async () => await pool.end());
-  
+
   it('should fetch specified chat', async () => {
     const { rows } = await pool.query(sql`SELECT * FROM users WHERE id = 2`);
-   
+
     const currentUser = rows[0];
-    
+
     const server = new ApolloServer({
       schema,
       context: async () => ({
@@ -22,8 +21,8 @@ describe('Query.chat', () => {
         currentUser,
         db: await pool.connect(),
       }),
-      
-      formatResponse: (res: any, { context }: { context: MyContext }) => {
+      // @ts-ignore
+      formatResponse: (res: any, context: MyContext) => {
         context.db.release();
         return res;
       },

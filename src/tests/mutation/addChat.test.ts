@@ -3,13 +3,12 @@ import { ApolloServer, PubSub, gql } from 'apollo-server-express';
 import schema from '../../graphql/index';
 import { resetDb } from '../../db/db';
 import { pool } from '../../db/config';
-import  sql  from 'sql-template-strings';
+import sql from 'sql-template-strings';
 import { MyContext } from '../../graphql/context/context';
-
 
 describe('Mutation.addChat', () => {
   // beforeEach(resetDb);
-  afterAll(async() => await pool.end());
+  afterAll(async () => await pool.end());
 
   it('creates a new chat between current user and specified recipient', async () => {
     const { rows } = await pool.query(sql`SELECT * FROM users WHERE id = 2`);
@@ -21,6 +20,7 @@ describe('Mutation.addChat', () => {
         currentUser,
         db: await pool.connect(),
       }),
+      // @ts-ignore
       formatResponse: (res: any, { context }: { context: MyContext }) => {
         context.db.release();
         return res;
@@ -78,6 +78,7 @@ describe('Mutation.addChat', () => {
         currentUser,
         db: await pool.connect(),
       }),
+      // @ts-ignore
       formatResponse: (res: any, { context }: { context: MyContext }) => {
         context.db.release();
         return res;
