@@ -257,12 +257,17 @@ const resolvers = {
         AND id = ${messageId}
       `);
 
-        const deleteMessage = rows[0];
+        const deleteMessage = {
+          id: rows[0].id,
+          content: rows[0].content,
+          created_at: rows[0].created_at,
+          chat_id: rows[0].chat_id,
+          sender_user_id: rows[0].sender_user_id,
+          ok: true,
+        };
         if (deleteMessage) {
           pubsub.publish('deleteMessage', {
-            chat_id: deleteMessage.chat_id,
-            id: deleteMessage.id,
-            ok: true,
+            deleteMessage,
           });
 
           await db.query(sql`DELETE FROM messages WHERE chat_id = ${chatId}
@@ -343,13 +348,10 @@ const resolvers = {
         async ({ messageAdded }, args, { currentUser }) => {
           if (!currentUser) return false;
 
-          console.log('currentUser', currentUser);
-          console.log('payload', messageAdded);
           const { rows } = await pool.query(sql`
           SELECT * FROM chats_users
           WHERE chat_id = ${messageAdded.chat_id}
           AND user_id = ${currentUser.id}`);
-          console.log('!!rows.length', !!rows.length);
 
           return !!rows.length;
         }
@@ -391,19 +393,9 @@ const resolvers = {
       subscribe: withFilter(
         (root, args) => pubsub.asyncIterator('deleteMessage'),
         async ({ deleteMessage }, args, { currentUser }) => {
-          console.log('deleteMessage', deleteMessage);
-          console.log('args', args);
-          console.log('currentUser', currentUser);
-          if (!currentUser) return false;
+          
+          if (!currentUser || !deleteMessage) return false;
 
-          console.log(
-            `(
-            deleteMessage.chat_id === args.chatId &&
-            deleteMessage.id === args.messageId
-          );`,
-            deleteMessage.chat_id === parseInt(args.chatId) &&
-              deleteMessage.id === parseInt(args.messageId)
-          );
           return (
             deleteMessage.chat_id === parseInt(args.chatId) &&
             deleteMessage.id === parseInt(args.messageId)

@@ -63,7 +63,7 @@ export default gql`
   type Subscription {
     messageAdded: Message!
     chatAdded: Chat!
-    deleteMessage(chatId: ID!, messageId: ID!): DeleteResponse
+    deleteMessage(chatId: ID, messageId: ID): DeleteResponse
     chatRemoved: ID!
   }
 
