@@ -3,13 +3,13 @@ import { withFilter } from 'apollo-server-express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import sql from 'sql-template-strings';
-import { Message, Chat } from '../../db/db';
-import { Resolvers } from '../typeDefs/graphql.d';
-import { secret, expiration } from '../../env';
+import { secret } from '../../env';
 import { validatePassword, validateLength } from '../../utils/validation';
 import { pool } from '../../db/config';
+import { setHeaders } from '../../utils/setHeaders';
+import pubsub from '../context/pubsub';
 
-const resolvers: Resolvers = {
+const resolvers = {
   DateTime: DateTimeResolver,
   URL: URLResolver,
 
@@ -102,7 +102,12 @@ const resolvers: Resolvers = {
   },
   Query: {
     me(root, args, { currentUser }) {
-      return currentUser || null;
+      return {
+        id: currentUser.id,
+        username: currentUser.username,
+        name: currentUser.name,
+        picture: currentUser.picture,
+      };
     },
 
     async chats(root, args, { currentUser, db }, info) {
@@ -141,7 +146,7 @@ const resolvers: Resolvers = {
   },
 
   Mutation: {
-    async addMessage(root, { chatId, content }, { pubsub, currentUser, db }) {
+    async addMessage(root, { chatId, content }, { currentUser, db }) {
       if (!currentUser) return null;
 
       const { rows } = await db.query(sql`
@@ -159,7 +164,7 @@ const resolvers: Resolvers = {
       return messageAdded;
     },
 
-    async addChat(root, { recipientId }, { currentUser, pubsub, db }) {
+    async addChat(root, { recipientId }, { currentUser, db }) {
       if (!currentUser) return null;
 
       const { rows } = await db.query(sql`
@@ -206,7 +211,7 @@ const resolvers: Resolvers = {
       }
     },
 
-    async removeChat(root, { chatId }, { currentUser, pubsub, db }) {
+    async removeChat(root, { chatId }, { currentUser, db }) {
       if (!currentUser) return null;
 
       try {
@@ -241,6 +246,39 @@ const resolvers: Resolvers = {
       }
     },
 
+    async deleteMessage(root, { chatId, messageId }, { currentUser, db }) {
+      console.log(currentUser);
+      if (!currentUser) return null;
+
+      try {
+        await db.query('BEGIN');
+        const { rows } = await db.query(sql`
+        SELECT * FROM messages WHERE chat_id = ${chatId}
+        AND id = ${messageId}
+      `);
+
+        const deleteMessage = rows[0];
+        if (deleteMessage) {
+          pubsub.publish('deleteMessage', {
+            chat_id: deleteMessage.chat_id,
+            id: deleteMessage.id,
+            ok: true,
+          });
+
+          await db.query(sql`DELETE FROM messages WHERE chat_id = ${chatId}
+          AND id = ${messageId}`);
+
+          await db.query('COMMIT');
+          return { ok: true };
+        } else {
+          return { ok: false };
+        }
+      } catch (error) {
+        await db.query('ROLLBACK');
+        throw e;
+      }
+    },
+
     async signIn(root, { username, password }, { res, db }) {
       const { rows } = await db.query(
         sql`SELECT * FROM users WHERE username = ${username}`
@@ -258,14 +296,17 @@ const resolvers: Resolvers = {
         throw new Error('Password and Email not current');
       }
 
-      const authToken = jwt.sign(username, secret);
+      const token = jwt.sign(username, secret);
+      setHeaders(token, res);
 
-      res.cookie('authToken', authToken, { maxAge: expiration });
-
-      return user;
+      return { ok: true, user, token };
     },
 
-    async signUp(root, { name, username, password, passwordConfirm }, { db }) {
+    async signUp(
+      root,
+      { name, username, password, passwordConfirm },
+      { res, db }
+    ) {
       validateLength('req.name', name, 3, 50);
       validateLength('req.username', username, 3, 18);
       validatePassword('req.password', password);
@@ -289,24 +330,26 @@ const resolvers: Resolvers = {
       );
 
       const user = createdUserQuery.rows[0];
-      return user;
+      const token = jwt.sign(username, secret);
+      setHeaders(token, res);
+
+      return { ok: true, user, token };
     },
   },
   Subscription: {
     messageAdded: {
       subscribe: withFilter(
-        (root, args, { pubsub }) => pubsub.asyncIterator('messageAdded'),
-        async (
-          { messageAdded }: { messageAdded: Message },
-          args,
-          { currentUser }
-        ) => {
+        (root, args) => pubsub.asyncIterator('messageAdded'),
+        async ({ messageAdded }, args, { currentUser }) => {
           if (!currentUser) return false;
 
+          console.log('currentUser', currentUser);
+          console.log('payload', messageAdded);
           const { rows } = await pool.query(sql`
           SELECT * FROM chats_users
           WHERE chat_id = ${messageAdded.chat_id}
           AND user_id = ${currentUser.id}`);
+          console.log('!!rows.length', !!rows.length);
 
           return !!rows.length;
         }
@@ -315,8 +358,8 @@ const resolvers: Resolvers = {
 
     chatAdded: {
       subscribe: withFilter(
-        (root, args, { pubsub }) => pubsub.asyncIterator('chatAdded'),
-        async ({ chatAdded }: { chatAdded: Chat }, args, { currentUser }) => {
+        (root, args) => pubsub.asyncIterator('chatAdded'),
+        async ({ chatAdded }, args, { currentUser }) => {
           if (!currentUser) return false;
 
           const { rows } = await pool.query(sql`
@@ -331,8 +374,8 @@ const resolvers: Resolvers = {
 
     chatRemoved: {
       subscribe: withFilter(
-        (root, args, { pubsub }) => pubsub.asyncIterator('chatRemoved'),
-        async ({ targetChat }: { targetChat: Chat }, args, { currentUser }) => {
+        (root, args) => pubsub.asyncIterator('chatRemoved'),
+        async ({ targetChat }, args, { currentUser }) => {
           if (!currentUser) return false;
 
           const { rows } = await pool.query(sql`
@@ -341,6 +384,30 @@ const resolvers: Resolvers = {
             AND user_id = ${currentUser.id}`);
 
           return !!rows.length;
+        }
+      ),
+    },
+    deleteMessage: {
+      subscribe: withFilter(
+        (root, args) => pubsub.asyncIterator('deleteMessage'),
+        async ({ deleteMessage }, args, { currentUser }) => {
+          console.log('deleteMessage', deleteMessage);
+          console.log('args', args);
+          console.log('currentUser', currentUser);
+          if (!currentUser) return false;
+
+          console.log(
+            `(
+            deleteMessage.chat_id === args.chatId &&
+            deleteMessage.id === args.messageId
+          );`,
+            deleteMessage.chat_id === parseInt(args.chatId) &&
+              deleteMessage.id === parseInt(args.messageId)
+          );
+          return (
+            deleteMessage.chat_id === parseInt(args.chatId) &&
+            deleteMessage.id === parseInt(args.messageId)
+          );
         }
       ),
     },

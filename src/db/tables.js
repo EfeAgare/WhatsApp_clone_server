@@ -20,13 +20,13 @@ const createChatUsersTable = `CREATE TABLE chats_users(
 
 const createMessagesTable = ` CREATE TABLE messages(
   id SERIAL PRIMARY KEY,
-  content VARCHAR (355) NOT NULL,
+  content TEXT NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   chat_id INTEGER NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
   sender_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
 );`;
 
-const makeQuery = async (query: any) => {
+const makeQuery = async (query) => {
   const db = await pool.connect();
   try {
     const res = await db.query(query);

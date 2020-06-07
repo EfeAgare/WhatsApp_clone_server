@@ -30,6 +30,15 @@ export default gql`
     username: String!
   }
 
+  type Response {
+    ok: Boolean!
+    user: User
+    token: String
+  }
+
+  type DeleteResponse {
+    ok: Boolean!
+  }
   type Query {
     chats: [Chat!]!
     chat(chatId: ID!): Chat
@@ -41,13 +50,20 @@ export default gql`
     addMessage(chatId: ID!, content: String!): Message
     addChat(recipientId: ID!): Chat
     removeChat(chatId: ID!): ID
-    signIn(username: String!, password: String!): User
-    signUp(name: String!, username: String!, password: String!, passwordConfirm: String!): User
+    deleteMessage(chatId: ID!, messageId: ID!): DeleteResponse
+    signIn(username: String!, password: String!): Response
+    signUp(
+      name: String!
+      username: String!
+      password: String!
+      passwordConfirm: String!
+    ): Response
   }
 
   type Subscription {
     messageAdded: Message!
     chatAdded: Chat!
+    deleteMessage(chatId: ID!, messageId: ID!): DeleteResponse
     chatRemoved: ID!
   }
 

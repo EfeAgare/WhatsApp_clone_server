@@ -1,12 +1,7 @@
 import { RESTDataSource, RequestOptions } from 'apollo-datasource-rest';
 import { resolve } from 'path';
 import { trackProvider } from '@safe-api/middleware';
-import { RandomPhoto } from './typeDefs/unsplash.d';
 
-interface RandomPhotoInput {
-  query: string;
-  orientation: 'landscape' | 'portrait' | 'squarish';
-}
 
 export class UnsplashApi extends RESTDataSource {
   constructor() {
@@ -14,7 +9,7 @@ export class UnsplashApi extends RESTDataSource {
     this.baseURL = 'https://api.unsplash.com/';
   }
 
-  willSendRequest(request: RequestOptions) {
+  willSendRequest(request) {
     request.headers.set(
       'Authorization',
       'Client-ID 4d048cfb4383b407eff92e4a2a5ec36c0a866be85e64caafa588c110efad350d'
@@ -23,8 +18,8 @@ export class UnsplashApi extends RESTDataSource {
 
   async getRandomPhoto() {
     const trackedRandomPhoto = await trackProvider(
-      ({ query, orientation }: RandomPhotoInput) =>
-        this.get<RandomPhoto>('photos/random', { query, orientation }),
+      ({ query, orientation }) =>
+        this.get('photos/random', { query, orientation }),
       {
         provider: 'Unsplash',
         method: 'RandomPhoto',

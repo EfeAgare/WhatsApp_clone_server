@@ -3,26 +3,6 @@ import 'dotenv/config';
 import { pool } from './config';
 import { resetDb as dbReset } from '../env';
 
-export type Message = {
-  id: string;
-  content: string;
-  created_at: Date;
-  chat_id: string;
-  sender_user_id: string;
-};
-
-export type Chat = {
-  id: string;
-};
-
-export type User = {
-  id: string;
-  name: string;
-  picture: string;
-  username: string;
-  password: string;
-};
-
 
 export const dbSeeds = async () => {
   const sampleUsers = [

@@ -17,4 +17,4 @@ if (environment === 'test') {
   dbConfig.database = process.env.DB_DATABASE_TEST
 }
 
-export let pool: Pool = new Pool(dbConfig)
+export let pool = new Pool(dbConfig)
