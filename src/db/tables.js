@@ -10,7 +10,8 @@ const createUsersTable = `CREATE TABLE users(
   username VARCHAR (50) UNIQUE NOT NULL,
   name VARCHAR (50) NOT NULL,
   password VARCHAR (255) NOT NULL,
-  picture VARCHAR (255) NOT NULL
+  picture VARCHAR (255) NOT NULL,
+  aboutMe VARCHAR (100) NOT NULL
 );`;
 
 const createChatUsersTable = `CREATE TABLE chats_users(
@@ -20,13 +21,13 @@ const createChatUsersTable = `CREATE TABLE chats_users(
 
 const createMessagesTable = ` CREATE TABLE messages(
   id SERIAL PRIMARY KEY,
-  content VARCHAR (355) NOT NULL,
+  content TEXT NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   chat_id INTEGER NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
   sender_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
 );`;
 
-const makeQuery = async (query: any) => {
+const makeQuery = async (query) => {
   const db = await pool.connect();
   try {
     const res = await db.query(query);

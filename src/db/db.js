@@ -3,33 +3,13 @@ import 'dotenv/config';
 import { pool } from './config';
 import { resetDb as dbReset } from '../env';
 
-export type Message = {
-  id: string;
-  content: string;
-  created_at: Date;
-  chat_id: string;
-  sender_user_id: string;
-};
-
-export type Chat = {
-  id: string;
-};
-
-export type User = {
-  id: string;
-  name: string;
-  picture: string;
-  username: string;
-  password: string;
-};
-
-
 export const dbSeeds = async () => {
   const sampleUsers = [
     {
       id: '1',
       name: 'Ray Edwards',
       username: 'ray',
+      aboutMe: "I'm getting better",
       password: '$2a$08$NO9tkFLCoSqX1c5wk3s7z.JfxaVMKA.m7zUDdDwEquo4rvzimQeJm', // 111
       picture: 'https://randomuser.me/api/portraits/thumb/lego/1.jpg',
     },
@@ -37,6 +17,7 @@ export const dbSeeds = async () => {
       id: '2',
       name: 'Ethan Gonzalez',
       username: 'ethan',
+      aboutMe: "I'm getting better",
       password: '$2a$08$xE4FuCi/ifxjL2S8CzKAmuKLwv18ktksSN.F3XYEnpmcKtpbpeZgO', // 222
       picture: 'https://randomuser.me/api/portraits/thumb/men/1.jpg',
     },
@@ -44,6 +25,7 @@ export const dbSeeds = async () => {
       id: '3',
       name: 'Bryan Wallace',
       username: 'bryan',
+      aboutMe: "I'm getting better",
       password: '$2a$08$UHgH7J8G6z1mGQn2qx2kdeWv0jvgHItyAsL9hpEUI3KJmhVW5Q1d.', // 333
       picture: 'https://randomuser.me/api/portraits/thumb/men/2.jpg',
     },
@@ -51,6 +33,7 @@ export const dbSeeds = async () => {
       id: '4',
       name: 'Avery Stewart',
       username: 'avery',
+      aboutMe: "I'm getting better",
       password: '$2a$08$wR1k5Q3T9FC7fUgB7Gdb9Os/GV7dGBBf4PLlWT7HERMFhmFDt47xi', // 444
       picture: 'https://randomuser.me/api/portraits/thumb/women/1.jpg',
     },
@@ -58,6 +41,7 @@ export const dbSeeds = async () => {
       id: '5',
       name: 'Katie Peterson',
       username: 'katie',
+      aboutMe: "I'm getting better",
       password: '$2a$08$6.mbXqsDX82ZZ7q5d8Osb..JrGSsNp4R3IKj7mxgF6YGT0OmMw242', // 555
       picture: 'https://randomuser.me/api/portraits/thumb/women/2.jpg',
     },
@@ -65,15 +49,15 @@ export const dbSeeds = async () => {
 
   for (const sampleUser of sampleUsers) {
     await pool.query(sql`
-      INSERT INTO users(id, name, username, password, picture)
-      VALUES(${sampleUser.id}, ${sampleUser.name}, ${sampleUser.username}, ${sampleUser.password}, ${sampleUser.picture})
+      INSERT INTO users(id, name, username, password, picture, aboutMe)
+      VALUES(${sampleUser.id}, ${sampleUser.name}, ${sampleUser.username}, ${sampleUser.password}, ${sampleUser.picture}, ${sampleUser.aboutMe})
     `);
   }
 
   await pool.query(
     sql`SELECT setval('users_id_seq', (SELECT max(id) FROM users))`
   );
-  
+
   await pool.query(
     sql`SELECT setval('users_id_seq', (SELECT max(id) FROM users))`
   );
@@ -195,9 +179,9 @@ export const dbSeeds = async () => {
   await pool.query(
     sql`SELECT setval('messages_id_seq', (SELECT max(id) FROM messages))`
   );
-}
+};
 export const resetDb = async () => {
-  dbSeeds
+  dbSeeds;
 };
 
 if (dbReset) {
