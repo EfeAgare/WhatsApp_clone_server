@@ -6,7 +6,6 @@ import schema from './graphql/index';
 import app from './expressApp';
 import { origin, port, secret } from './env';
 import { pool } from './db/config';
-import { UnsplashApi } from './graphql/unsplash.api';
 import pubsub from './graphql/context/pubsub';
 
 let db;
@@ -52,9 +51,7 @@ const server = new ApolloServer({
       }
     }
   },
-  dataSources: () => ({
-    unsplashApi: new UnsplashApi(),
-  }),
+
   subscriptions: {
     onConnect: async ({ token }, webSocket) => {
       console.log('connected');
