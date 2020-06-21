@@ -36,9 +36,9 @@ const server = new ApolloServer({
         };
       } else {
         console.log('here');
-        const username = jwt.verify(token, secret);
+        const id = jwt.verify(token, secret);
         const { rows } = await pool.query(
-          sql`SELECT * FROM users WHERE username = ${username}`
+          sql`SELECT * FROM users WHERE id = ${id}`
         );
         currentUser = rows[0];
         return {
@@ -60,9 +60,9 @@ const server = new ApolloServer({
       console.log('connected');
 
       if (token != undefined || token != null) {
-        const username = jwt.verify(token, secret);
+        const id = jwt.verify(token, secret);
         const { rows } = await pool.query(
-          sql`SELECT * FROM users WHERE username = ${username}`
+          sql`SELECT * FROM users WHERE id = ${id}`
         );
         let currentUser = rows[0];
         return {

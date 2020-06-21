@@ -10,7 +10,8 @@ const createUsersTable = `CREATE TABLE users(
   username VARCHAR (50) UNIQUE NOT NULL,
   name VARCHAR (50) NOT NULL,
   password VARCHAR (255) NOT NULL,
-  picture VARCHAR (255) NOT NULL
+  picture VARCHAR (255) NOT NULL,
+  aboutMe VARCHAR (100) NOT NULL
 );`;
 
 const createChatUsersTable = `CREATE TABLE chats_users(

@@ -29,9 +29,8 @@ export default gql`
     name: String!
     picture: URL
     username: String!
-    aboutme: String
+    aboutMe: String
   }
-
 
   type Response {
     ok: Boolean!
@@ -67,7 +66,7 @@ export default gql`
       password: String!
       passwordConfirm: String!
     ): Response
-    updateUser(name: String!, aboutme: String, username: String!, file: Upload): User!
+    updateUser(name: String!, aboutMe: String!, file: Upload): User!
   }
 
   type Subscription {

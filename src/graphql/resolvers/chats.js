@@ -1,5 +1,5 @@
 import { DateTimeResolver, URLResolver } from 'graphql-scalars';
-import { withFilter } from 'apollo-server-express';
+import { withFilter, GraphQLUpload } from 'apollo-server-express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import sql from 'sql-template-strings';
@@ -8,10 +8,12 @@ import { validatePassword, validateLength } from '../../utils/validation';
 import { pool } from '../../db/config';
 import { setHeaders } from '../../utils/setHeaders';
 import pubsub from '../context/pubsub';
+import cloudinary from '../../cloudinary';
 
 const resolvers = {
   DateTime: DateTimeResolver,
   URL: URLResolver,
+  Upload: GraphQLUpload,
 
   Message: {
     createdAt(message) {
@@ -50,6 +52,7 @@ const resolvers = {
       const { rows } = await db.query(
         sql`SELECT * FROM messages WHERE chat_id = ${chat.id} ORDER BY created_at DESC LIMIT 1`
       );
+
       return rows[0];
     },
 
@@ -85,9 +88,7 @@ const resolvers = {
 
       const participant = rows[0];
 
-      return participant && participant.picture
-        ? participant.picture
-        : dataSources.unsplashApi.getRandomPhoto();
+      return participant.picture;
     },
 
     async participants(chat, args, { currentUser, db }) {
@@ -102,11 +103,13 @@ const resolvers = {
   },
   Query: {
     me(root, args, { currentUser }) {
+
       return {
         id: currentUser.id,
         username: currentUser.username,
         name: currentUser.name,
         picture: currentUser.picture,
+        aboutme: currentUser.aboutme,
       };
     },
 
@@ -174,8 +177,14 @@ const resolvers = {
         AND chats_users.user_id = ${recipientId}
       `);
 
+      let chatAdded;
       // If there is already a chat between these two users, return it
+
       if (rows[0]) {
+        chatAdded = { id: rows[0].id, ok: true };
+        pubsub.publish('chatAdded', {
+          chatAdded,
+        });
         return rows[0];
       }
 
@@ -187,7 +196,7 @@ const resolvers = {
           RETURNING *
         `);
 
-        const chatAdded = rows[0];
+        chatAdded = { id: rows[0].id, ok: true };
 
         await db.query(sql`
           INSERT INTO chats_users(chat_id, user_id)
@@ -204,6 +213,7 @@ const resolvers = {
         pubsub.publish('chatAdded', {
           chatAdded,
         });
+
         return chatAdded;
       } catch (e) {
         await db.query('ROLLBACK');
@@ -233,8 +243,9 @@ const resolvers = {
       DELETE FROM chats WHERE chats.id = ${chatId}
     `);
 
+        const chatRemoved = { id: chat.id, ok: true };
         pubsub.publish('chatRemoved', {
-          chatRemoved: chat.id,
+          chatRemoved,
           targetChat: chat,
         });
 
@@ -247,7 +258,6 @@ const resolvers = {
     },
 
     async deleteMessage(root, { chatId, messageId }, { currentUser, db }) {
-      console.log(currentUser);
       if (!currentUser) return null;
 
       try {
@@ -285,6 +295,7 @@ const resolvers = {
     },
 
     async signIn(root, { username, password }, { res, db }) {
+      console.log(username);
       const { rows } = await db.query(
         sql`SELECT * FROM users WHERE username = ${username}`
       );
@@ -301,7 +312,7 @@ const resolvers = {
         throw new Error('Password and Email not current');
       }
 
-      const token = jwt.sign(username, secret);
+      const token = jwt.sign(user.id, secret);
       setHeaders(token, res);
 
       return { ok: true, user, token };
@@ -330,15 +341,51 @@ const resolvers = {
 
       const passwordHash = bcrypt.hashSync(password, bcrypt.genSaltSync(8));
 
+      const picture = 'https://randomuser.me/api/portraits/thumb/men/1.jpg';
       const createdUserQuery = await db.query(
-        sql`INSERT INTO users(username, password, name, picture) VALUES (${username}, ${passwordHash}, ${name}, '') RETURNING *`
+        sql`INSERT INTO users(username, password, name, picture) VALUES (${username}, ${passwordHash}, ${name}, ${picture}) RETURNING *`
       );
 
       const user = createdUserQuery.rows[0];
-      const token = jwt.sign(username, secret);
+
+      const token = jwt.sign(user.id, secret);
+
       setHeaders(token, res);
 
       return { ok: true, user, token };
+    },
+
+    async updateUser(
+      roots,
+      { name, aboutme, file, username },
+      { currentUser, db }
+    ) {
+      try {
+        let user;
+        if (file != null) {
+          const { createReadStream } = await file;
+          const result = await new Promise((resolve, reject) => {
+            createReadStream().pipe(
+              cloudinary.v2.uploader.upload_stream((error, result) => {
+                if (error) {
+                  reject(error);
+                }
+                resolve(result);
+              })
+            );
+          });
+
+          user = await db.query(
+            sql`UPDATE users SET name = ${name}, aboutme =${aboutme}, username =${username}, picture =${result.secure_url} WHERE id = ${currentUser.id} RETURNING *`
+          );
+
+        } else {
+          user = await db.query(
+            sql`UPDATE users SET name = ${name}, aboutme =${aboutme}, username =${username} WHERE id = ${currentUser.id} RETURNING *`
+          );
+        }
+        return user.rows[0];
+      } catch (error) {}
     },
   },
   Subscription: {
@@ -385,6 +432,7 @@ const resolvers = {
             WHERE chat_id = ${targetChat.id}
             AND user_id = ${currentUser.id}`);
 
+          console.log('!!rows.length', !!rows.length);
           return !!rows.length;
         }
       ),
@@ -393,7 +441,6 @@ const resolvers = {
       subscribe: withFilter(
         (root, args) => pubsub.asyncIterator('deleteMessage'),
         async ({ deleteMessage }, args, { currentUser }) => {
-          
           if (!currentUser || !deleteMessage) return false;
 
           return (
