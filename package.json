@@ -51,7 +51,7 @@
     "@types/cookie": "^0.3.3",
     "@types/cookie-parser": "^1.4.2",
     "apollo-datasource-rest": "^0.9.0",
-    "apollo-server-express": "^2.12.0",
+    "apollo-server-express": "^2.14.2",
     "apollo-upload-client": "^13.0.0",
     "bcrypt": "^4.0.1",
     "cloudinary": "^1.22.0",
