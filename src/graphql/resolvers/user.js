@@ -13,7 +13,7 @@ export default {
       return {
         id: currentUser.id,
         username: currentUser.username,
-        name: currentUser.name,
+        phonenumber: currentUser.phonenumber,
         picture: currentUser.picture,
         aboutme: currentUser.aboutme,
       };
@@ -68,27 +68,26 @@ export default {
       }
     },
 
-    async signIn(root, { username, password }, { res, db }) {
-      console.log(username);
-      const { rows } = await db.query(
-        sql`SELECT * FROM users WHERE username = ${username}`
+    async signIn(root, { username, aboutMe, phoneNumber }, { res, db }) {
+      const existingUserQuery = await db.query(
+        sql`SELECT * FROM users WHERE phoneNumber = ${phoneNumber}`
       );
 
-      const user = rows[0];
-
-      if (!user) {
-        throw new Error('User not found');
+      if (existingUserQuery.rows[0]) {
+        const user = existingUserQuery.rows[0];
+        const token = jwt.sign(user.id, secret);
+        setHeaders(token, res);
+        return { ok: true, user, token };
       }
 
-      const passwordMatch = bcrypt.compareSync(password, user.password);
+      const picture = 'https://randomuser.me/api/portraits/thumb/men/1.jpg';
+      const createdUserQuery = await db.query(
+        sql`INSERT INTO users(username, phoneNumber, aboutMe, picture) VALUES (${username}, ${phoneNumber}, ${aboutMe}, ${picture}) RETURNING *`
+      );
 
-      if (!passwordMatch) {
-        throw new Error('Password and Email not current');
-      }
-
+      const user = createdUserQuery.rows[0];
       const token = jwt.sign(user.id, secret);
       setHeaders(token, res);
-
       return { ok: true, user, token };
     },
 

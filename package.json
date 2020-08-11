@@ -9,9 +9,7 @@
     "migrate": "babel-node ./src/db/tables.js",
     "format": "prettier \"**/*.ts\" --write",
     "start:watch": "nodemon --exec babel-node ./src/index.js",
-    "test": "NODE_ENV=test && yarn migrate && jest -u --runInBand --detectOpenHandles --forceExit",
-    "prestart": "yarn codegen",
-    "codegen": "graphql-codegen"
+    "test": "NODE_ENV=test && yarn migrate && jest -u --runInBand --detectOpenHandles --forceExit"
   },
   "jest-junit": {
     "outputDirectory": "./test-results"

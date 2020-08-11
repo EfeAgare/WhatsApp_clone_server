@@ -8,8 +8,7 @@ const createChatsTable = `CREATE TABLE chats(
 const createUsersTable = `CREATE TABLE users(
   id SERIAL PRIMARY KEY,
   username VARCHAR (50) UNIQUE NOT NULL,
-  name VARCHAR (50) NOT NULL,
-  password VARCHAR (255) NOT NULL,
+  phoneNumber VARCHAR (50) NOT NULL,
   picture VARCHAR (255) NOT NULL,
   aboutMe VARCHAR (100) NOT NULL
 );`;
@@ -24,7 +23,8 @@ const createMessagesTable = ` CREATE TABLE messages(
   content TEXT NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   chat_id INTEGER NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
-  sender_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
+  sender_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  read BOOLEAN NOT NULL DEFAULT FALSE
 );`;
 
 const makeQuery = async (query) => {

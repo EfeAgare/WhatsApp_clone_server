@@ -9,6 +9,7 @@ export default gql`
     sender: User
     recipient: User
     isMine: Boolean!
+    read: Boolean!
   }
 
   extend type Mutation {

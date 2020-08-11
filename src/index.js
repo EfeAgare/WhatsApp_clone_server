@@ -27,6 +27,7 @@ const server = new ApolloServer({
       const token = req.headers['x-token'] || '';
 
       if (!token || token == 'undefined' || token == 'null') {
+        console.log('here read');
         return {
           req,
           res,
@@ -56,16 +57,17 @@ const server = new ApolloServer({
     onConnect: async ({ token }, webSocket) => {
       console.log('connected');
 
-      if (token != undefined || token != null) {
-        const id = jwt.verify(token, secret);
-        const { rows } = await pool.query(
-          sql`SELECT * FROM users WHERE id = ${id}`
-        );
-        let currentUser = rows[0];
-        return {
-          currentUser,
-        };
-      }
+      // console.log("token", token)
+      // if (token != undefined || token != null) {
+      //   const id = jwt.verify(token, secret);
+      //   const { rows } = await pool.query(
+      //     sql`SELECT * FROM users WHERE id = ${id}`
+      //   );
+      //   let currentUser = rows[0];
+      //   return {
+      //     currentUser,
+      //   };
+      // }
     },
     onDisconnect: async (webSocket) => {
       console.log('Disconnected.');

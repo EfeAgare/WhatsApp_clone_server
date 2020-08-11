@@ -67,6 +67,7 @@ export default {
   },
   Query: {
     async chats(root, args, { currentUser, db }, info) {
+
       if (!currentUser) return [];
       const { rows } = await db.query(sql`
       SELECT chats.* FROM chats, chats_users
@@ -97,7 +98,7 @@ export default {
 
       const { rows } = await db.query(sql`
         SELECT chats.* FROM chats, (SELECT * FROM chats_users WHERE user_id = ${currentUser.id}) AS chats_of_current_user, chats_users
-        WHERE chats.id = chats_users.chat_id 
+        WHERE chats.id = chats_users.chat_id
         AND chats_of_current_user.chat_id = chats_users.chat_id
         AND chats_users.user_id = ${recipientId}
       `);

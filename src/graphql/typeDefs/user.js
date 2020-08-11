@@ -3,7 +3,7 @@ import { gql } from 'apollo-server-express';
 export default gql`
   type User {
     id: ID!
-    name: String!
+    phonenumber: String!
     picture: URL
     username: String!
     aboutme: String
@@ -15,7 +15,7 @@ export default gql`
   }
 
   extend type Mutation {
-    signIn(username: String!, password: String!): Response
+    signIn(username: String!, aboutMe: String!, phoneNumber: String!): Response
     signUp(
       name: String!
       username: String!
