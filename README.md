@@ -6,4 +6,6 @@ WhatsApp_clone_server
   * Javascript
   * Git
   * Graphql
-  * React
+  * Node
+  * Express
+  * Cloudinary
